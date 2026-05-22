@@ -154,6 +154,7 @@ var scenePlay = new Phaser.Class({
 
             if (this.charaTweens != null) {
                 this.charaTweens.stop();
+                this.charaTweens = null;
             }
 
             this.charaVelocity = this.jumpPower;
@@ -161,11 +162,15 @@ var scenePlay = new Phaser.Class({
             let randomClick = Math.floor(Math.random() * this.snd_click.length);
             this.snd_click[randomClick].play();
 
-            this.tweens.add({
+            // Store reference so it can be stopped on next flap
+            this.charaTweens = this.tweens.add({
                 targets: this.chara,
                 angle: -18,
                 duration: 120,
-                ease: 'Power1'
+                ease: 'Power1',
+                onComplete: function () {
+                    myScene.charaTweens = null;
+                }
             });
         };
 
@@ -244,8 +249,11 @@ var scenePlay = new Phaser.Class({
 
         this.chara.y += this.charaVelocity;
 
-        let targetAngle = Phaser.Math.Clamp(this.charaVelocity * 4, -25, 35);
-        this.chara.angle = Phaser.Math.Linear(this.chara.angle, targetAngle, 0.12);
+        // Only smoothly rotate when no flap tween is active (prevents blinking/jitter)
+        if (this.charaTweens == null) {
+            let targetAngle = Phaser.Math.Clamp(this.charaVelocity * 4, -25, 35);
+            this.chara.angle = Phaser.Math.Linear(this.chara.angle, targetAngle, 0.12);
+        }
 
         if (this.chara.y < this.topLimit) {
             this.chara.y = this.topLimit;
