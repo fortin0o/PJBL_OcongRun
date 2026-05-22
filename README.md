@@ -30,7 +30,7 @@ PJBL_OcongRun/
 ```
 
 ## How to Play
-
+Access this github-pages link 'https://fortin0o.github.io/PJBL_OcongRun/'
 
 ## Development Notes
 - **Ground level** is controlled by `this.bottomLimit` in `scenePlay.js` (currently set to `590`).
