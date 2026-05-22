@@ -43,12 +43,16 @@ var scenePlay = new Phaser.Class({
         this.maxUpSpeed = -15.0;
         this.isGrounded = true;
 
+        // Double jump support
+        this.jumpsCount = 0;
+        this.maxJumps = 2;
+
         this.minSpawnDelay = 85;
         this.maxSpawnDelay = 135;
         this.baseObstacleSpeed = 5.2;
 
         this.topLimit = 35;
-        this.bottomLimit = 710;
+        this.bottomLimit = 590;
 
         this.snd_dead = this.sound.add('snd_dead');
 
@@ -187,32 +191,50 @@ var scenePlay = new Phaser.Class({
 
         this.flap = function () {
             if (!this.isGameRunning || this.isGameOver) return;
-            if (!this.isGrounded) return; // Only jump when grounded!
+            if (this.jumpsCount >= this.maxJumps) return; // Allow up to maxJumps
 
             if (this.charaTweens != null) {
                 this.charaTweens.stop();
                 this.charaTweens = null;
             }
 
+            this.jumpsCount++;
             this.isGrounded = false;
             this.charaVelocity = this.jumpPower;
 
             let randomClick = Math.floor(Math.random() * this.snd_click.length);
             this.snd_click[randomClick].play();
 
-            // Jump stretch animation (very premium!)
-            this.charaTweens = this.tweens.add({
-                targets: this.chara,
-                scaleY: 1.25,
-                scaleX: 0.85,
-                duration: 150,
-                yoyo: true,
-                ease: 'Quad.easeOut',
-                onComplete: function () {
-                    myScene.charaTweens = null;
-                    myScene.chara.setScale(1);
-                }
-            });
+            if (this.jumpsCount === 2) {
+                // Second jump: 360° spin effect!
+                this.charaTweens = this.tweens.add({
+                    targets: this.chara,
+                    angle: this.chara.angle + 360,
+                    scaleY: 0.9,
+                    scaleX: 0.9,
+                    duration: 400,
+                    ease: 'Cubic.easeOut',
+                    onComplete: function () {
+                        myScene.charaTweens = null;
+                        myScene.chara.setScale(1);
+                        myScene.chara.angle = myScene.chara.angle % 360;
+                    }
+                });
+            } else {
+                // First jump: stretch animation
+                this.charaTweens = this.tweens.add({
+                    targets: this.chara,
+                    scaleY: 1.25,
+                    scaleX: 0.85,
+                    duration: 150,
+                    yoyo: true,
+                    ease: 'Quad.easeOut',
+                    onComplete: function () {
+                        myScene.charaTweens = null;
+                        myScene.chara.setScale(1);
+                    }
+                });
+            }
         };
 
         this.spawnObstacle = function () {
@@ -221,8 +243,10 @@ var scenePlay = new Phaser.Class({
             let speedBonus = Math.min(this.score * 0.08, 3.2);
             let obstacleSpeed = this.baseObstacleSpeed + speedBonus;
 
-            // Spawn obstacles on the ground
-            let acak_y = this.bottomLimit;
+            // Spawn obstacles on the ground — align bottom of obstacle with character feet
+            // Character feet at bottomLimit + 75. Obstacle half-height (69*0.85/2 ≈ 29)
+            let groundY = this.bottomLimit + 75; // actual ground line (feet)
+            let acak_y = groundY - (69 * 0.85 / 2); // obstacle center so bottom aligns
 
             let halanganBaru = this.add.image(1120, acak_y, 'obstc');
             halanganBaru.setOrigin(0.5);
@@ -491,6 +515,8 @@ var scenePlay = new Phaser.Class({
                 this.chara.y = this.bottomLimit;
                 this.charaVelocity = 0;
                 this.isGrounded = true;
+                this.jumpsCount = 0; // Reset jump count on landing
+                this.chara.angle = 0; // Reset rotation on landing
 
                 // Play landing squash & stretch tween
                 this.tweens.add({

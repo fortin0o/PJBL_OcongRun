@@ -2,21 +2,36 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Pocong</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Ocong Run - Game Pocong</title>
+    <meta name="description" content="Ocong Run - an endless runner game featuring a Pocong character! Jump over obstacles and survive as long as you can.">
 
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
 
     <link rel="icon" type="image/x-icon" href="favicon.ico">
 
     <style>
-        html, body {
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
             width: 100%;
             height: 100%;
             overflow: hidden;
             background: #000;
+            position: fixed;
+            top: 0;
+            left: 0;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -39,6 +54,57 @@
 
         canvas {
             display: block;
+            touch-action: none;
+        }
+
+        /* Orientation overlay for portrait mobile users */
+        #orientation-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 20, 0.97);
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            padding: 30px;
+        }
+
+        #orientation-overlay .rotate-icon {
+            font-size: 72px;
+            margin-bottom: 24px;
+            animation: rotatePhone 1.8s ease-in-out infinite;
+        }
+
+        #orientation-overlay h2 {
+            font-size: 22px;
+            margin-bottom: 10px;
+            color: #ff732e;
+        }
+
+        #orientation-overlay p {
+            font-size: 15px;
+            color: #aaa;
+            max-width: 280px;
+        }
+
+        @keyframes rotatePhone {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(90deg); }
+            75% { transform: rotate(90deg); }
+        }
+
+        /* Show overlay only on portrait-oriented small screens */
+        @media screen and (orientation: portrait) and (max-width: 1024px) {
+            #orientation-overlay {
+                display: flex;
+            }
         }
     </style>
 
@@ -53,7 +119,19 @@
 <body>
     <div id="game-container"></div>
 
+    <!-- Orientation overlay for mobile portrait users -->
+    <div id="orientation-overlay">
+        <div class="rotate-icon">📱</div>
+        <h2>Putar Layar Anda</h2>
+        <p>Untuk pengalaman bermain terbaik, silakan putar perangkat Anda ke mode landscape.</p>
+    </div>
+
     <script>
+        // Prevent pull-to-refresh and bounce scroll on mobile
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+
         const config = {
             type: Phaser.AUTO,
 
@@ -84,6 +162,10 @@
                     },
                     debug: false
                 }
+            },
+
+            input: {
+                activePointers: 3
             }
         };
 
