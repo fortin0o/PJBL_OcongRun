@@ -93,27 +93,51 @@ var sceneMenu = new Phaser.Class({
             scaleY: 1
         });
 
+        // Menaruh variabel penanda apakah tombol sedang diklik atau tidak
+        var isBtnClicked = false;
+
+        btnPlay.setInteractive();
+
         this.input.on('gameobjectover', function (pointer, gameObject) {
             console.log('Scene Menu | Object Over');
-            if (!isBtnClicked) return;
             if (gameObject == btnPlay) {
-                btnPlay.setTint(0x616161);
+                gameObject.setTint(0xdddddd);
+                this.tweens.add({
+                    targets: gameObject,
+                    scaleX: 1.08,
+                    scaleY: 1.08,
+                    duration: 150,
+                    ease: 'Power1'
+                });
             }
         }, this);
 
         this.input.on('gameobjectout', function (pointer, gameObject) {
             console.log('Scene Menu | Object Out');
-            if (!isBtnClicked) return;
             if (gameObject == btnPlay) {
-                btnPlay.setTint(0xffffff);
-                isBtnClicked = true;
+                gameObject.setTint(0xffffff);
+                this.tweens.add({
+                    targets: gameObject,
+                    scaleX: 1.0,
+                    scaleY: 1.0,
+                    duration: 150,
+                    ease: 'Power1'
+                });
+                isBtnClicked = false;
             }
         }, this);
 
         this.input.on('gameobjectdown', function (pointer, gameObject) {
             console.log('Scene Menu | Object Click');
             if (gameObject == btnPlay) {
-                btnPlay.setTint(0x616161);
+                gameObject.setTint(0x888888);
+                this.tweens.add({
+                    targets: gameObject,
+                    scaleX: 0.95,
+                    scaleY: 0.95,
+                    duration: 100,
+                    ease: 'Power1'
+                });
                 isBtnClicked = true;
             }
         }, this);
@@ -122,8 +146,17 @@ var sceneMenu = new Phaser.Class({
         this.input.on('gameobjectup', function (pointer, gameObject) {
             console.log('Scene Menu | Object End Click');
             if (gameObject == btnPlay) {
-                btnPlay.setTint(0xffffff);
-                this.scene.start('scenePlay');
+                gameObject.setTint(0xffffff);
+                this.tweens.add({
+                    targets: gameObject,
+                    scaleX: 1.0,
+                    scaleY: 1.0,
+                    duration: 100,
+                    ease: 'Power1',
+                    onComplete: function() {
+                        diz.scene.start('scenePlay');
+                    }
+                });
                 this.snd_touch.play();
             }
         }, this);
@@ -132,11 +165,6 @@ var sceneMenu = new Phaser.Class({
             console.log('Scene Menu | Mouse Up');
             isBtnClicked = false;
         }, this);
-
-        btnPlay.setInteractive();
-
-        //menambahkan variabel penanda apakah tombol sedang diklik atau tidak
-        var isBtnClicked = false;
 
     },
     update(){}

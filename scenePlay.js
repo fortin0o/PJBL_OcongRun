@@ -89,6 +89,9 @@ var scenePlay = new Phaser.Class({
 
         this.charaTweens = null;
 
+        this.isGameStarted = false;
+        this.readyToStart = false;
+
         this.tweens.add({
             delay: 250,
             targets: this.chara,
@@ -97,7 +100,7 @@ var scenePlay = new Phaser.Class({
             scaleX: 1,
             scaleY: 1,
             onComplete: function () {
-                myScene.isGameRunning = true;
+                myScene.readyToStart = true;
                 myScene.charaVelocity = 0;
             }
         });
@@ -117,7 +120,7 @@ var scenePlay = new Phaser.Class({
         this.label_score.setOrigin(0.5);
         this.label_score.setDepth(10);
 
-        this.guideText = this.add.text(1024 / 2, 720, 'Klik / tekan SPACE untuk naik', {
+        this.guideText = this.add.text(1024 / 2, 720, 'Klik / tekan SPACE untuk MULAI', {
             fontFamily: 'Arial',
             fontSize: '24px',
             fontStyle: 'bold',
@@ -137,17 +140,48 @@ var scenePlay = new Phaser.Class({
             repeat: -1
         });
 
+        this.handleInput = function () {
+            if (myScene.isGameOver) return;
+
+            if (!myScene.isGameStarted) {
+                if (!myScene.readyToStart) {
+                    // Skip entrance tween and scale instantly
+                    myScene.tweens.killTweensOf(myScene.chara);
+                    myScene.chara.setScale(1);
+                    myScene.readyToStart = true;
+                }
+
+                myScene.isGameStarted = true;
+                myScene.isGameRunning = true;
+
+                if (myScene.guideText) {
+                    myScene.tweens.add({
+                        targets: myScene.guideText,
+                        alpha: 0,
+                        duration: 250,
+                        onComplete: function () {
+                            myScene.guideText.destroy();
+                        }
+                    });
+                }
+            }
+
+            myScene.flap();
+        };
+
         this.input.on('pointerdown', function () {
-            myScene.flap();
+            myScene.handleInput();
         });
 
-        this.input.keyboard.on('keydown-SPACE', function () {
-            myScene.flap();
-        });
+        if (this.input.keyboard) {
+            this.input.keyboard.on('keydown-SPACE', function () {
+                myScene.handleInput();
+            });
 
-        this.input.keyboard.on('keydown-UP', function () {
-            myScene.flap();
-        });
+            this.input.keyboard.on('keydown-UP', function () {
+                myScene.handleInput();
+            });
+        }
 
         this.flap = function () {
             if (!this.isGameRunning || this.isGameOver) return;
@@ -202,9 +236,12 @@ var scenePlay = new Phaser.Class({
             this.isGameRunning = false;
 
             let highScore = Number(localStorage['highscore'] || 0);
+            let isNewHighScore = false;
 
             if (this.score > highScore) {
+                highScore = this.score;
                 localStorage['highscore'] = this.score;
+                isNewHighScore = true;
             }
 
             this.snd_dead.play();
@@ -217,17 +254,194 @@ var scenePlay = new Phaser.Class({
                 this.halangan[i].setData('kecepatan', 0);
             }
 
+            // Fall downward rotation animation on death
             this.charaTweens = this.tweens.add({
                 targets: this.chara,
-                ease: 'Elastic.easeOut',
-                duration: 900,
-                alpha: 0,
-                angle: 180,
-                scaleX: 0,
-                scaleY: 0,
+                y: this.bottomLimit,
+                angle: 90,
+                duration: 600,
+                ease: 'Cubic.easeIn',
                 onComplete: function () {
-                    myScene.scene.start('sceneMenu');
+                    myScene.showGameOverScreen(isNewHighScore, highScore);
                 }
+            });
+        };
+
+        this.showGameOverScreen = function (isNewHighScore, highScore) {
+            // Dark overlay
+            let overlay = myScene.add.graphics();
+            overlay.fillStyle(0x000000, 0.7);
+            overlay.fillRect(0, 0, 1024, 768);
+            overlay.setDepth(50);
+            overlay.setAlpha(0);
+
+            myScene.tweens.add({
+                targets: overlay,
+                alpha: 1,
+                duration: 400
+            });
+
+            // UI Container that slides in
+            let uiContainer = myScene.add.container(0, 768);
+            uiContainer.setDepth(100);
+
+            let cardWidth = 460;
+            let cardHeight = 380;
+            let cardX = 1024 / 2 - cardWidth / 2;
+            let cardY = 768 / 2 - cardHeight / 2;
+
+            // Panel Background
+            let cardBg = myScene.add.graphics();
+            cardBg.fillStyle(0x1a1a24, 0.95);
+            cardBg.lineStyle(4, 0xff732e, 1);
+            cardBg.fillRoundedRect(cardX, cardY, cardWidth, cardHeight, 16);
+            cardBg.strokeRoundedRect(cardX, cardY, cardWidth, cardHeight, 16);
+            uiContainer.add(cardBg);
+
+            // Title
+            let titleText = myScene.add.text(1024 / 2, cardY + 50, 'GAME OVER', {
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '44px',
+                fontStyle: 'bold',
+                color: '#ff3b30',
+                stroke: '#000000',
+                strokeThickness: 6
+            });
+            titleText.setOrigin(0.5);
+            uiContainer.add(titleText);
+
+            // Inner score panel
+            let scorePanel = myScene.add.graphics();
+            scorePanel.fillStyle(0x111118, 0.8);
+            scorePanel.fillRoundedRect(cardX + 40, cardY + 110, cardWidth - 80, 110, 10);
+            uiContainer.add(scorePanel);
+
+            // Score Val
+            let scoreValText = myScene.add.text(1024 / 2, cardY + 140, 'SKOR: ' + myScene.score, {
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '28px',
+                fontStyle: 'bold',
+                color: '#ffffff'
+            });
+            scoreValText.setOrigin(0.5);
+            uiContainer.add(scoreValText);
+
+            // High Score Val
+            let hsText = 'SKOR TERBAIK: ' + highScore;
+            if (isNewHighScore) {
+                hsText = 'NEW BEST: ' + highScore + ' 🔥';
+            }
+            let highScoreValText = myScene.add.text(1024 / 2, cardY + 185, hsText, {
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '22px',
+                fontStyle: 'bold',
+                color: isNewHighScore ? '#ff9f0a' : '#ff732e'
+            });
+            highScoreValText.setOrigin(0.5);
+            uiContainer.add(highScoreValText);
+
+            // Restart Button
+            let btnRestart = myScene.add.image(1024 / 2 - 105, cardY + 285, 'panel_skor');
+            btnRestart.setDisplaySize(160, 50);
+            btnRestart.setInteractive();
+            uiContainer.add(btnRestart);
+
+            let txtRestart = myScene.add.text(btnRestart.x, btnRestart.y, 'MAIN LAGI', {
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '18px',
+                fontStyle: 'bold',
+                color: '#ffffff'
+            });
+            txtRestart.setOrigin(0.5);
+            uiContainer.add(txtRestart);
+
+            // Menu Button
+            let btnMenu = myScene.add.image(1024 / 2 + 105, cardY + 285, 'panel_skor');
+            btnMenu.setDisplaySize(160, 50);
+            btnMenu.setInteractive();
+            btnMenu.setTint(0x999999);
+            uiContainer.add(btnMenu);
+
+            let txtMenu = myScene.add.text(btnMenu.x, btnMenu.y, 'MENU UTAMA', {
+                fontFamily: 'Arial, sans-serif',
+                fontSize: '18px',
+                fontStyle: 'bold',
+                color: '#ffffff'
+            });
+            txtMenu.setOrigin(0.5);
+            uiContainer.add(txtMenu);
+
+            // Hover and Click animations
+            btnRestart.on('pointerover', function () {
+                btnRestart.setTint(0xdddddd);
+                myScene.tweens.add({
+                    targets: [btnRestart, txtRestart],
+                    scaleX: 1.05,
+                    scaleY: 1.05,
+                    duration: 100
+                });
+            });
+            btnRestart.on('pointerout', function () {
+                btnRestart.setTint(0xffffff);
+                myScene.tweens.add({
+                    targets: [btnRestart, txtRestart],
+                    scaleX: 1.0,
+                    scaleY: 1.0,
+                    duration: 100
+                });
+            });
+            btnRestart.on('pointerdown', function () {
+                btnRestart.setTint(0x888888);
+            });
+            btnRestart.on('pointerup', function () {
+                myScene.snd_click[0].play();
+                myScene.scene.restart();
+            });
+
+            btnMenu.on('pointerover', function () {
+                btnMenu.setTint(0xcccccc);
+                myScene.tweens.add({
+                    targets: [btnMenu, txtMenu],
+                    scaleX: 1.05,
+                    scaleY: 1.05,
+                    duration: 100
+                });
+            });
+            btnMenu.on('pointerout', function () {
+                btnMenu.setTint(0x999999);
+                myScene.tweens.add({
+                    targets: [btnMenu, txtMenu],
+                    scaleX: 1.0,
+                    scaleY: 1.0,
+                    duration: 100
+                });
+            });
+            btnMenu.on('pointerdown', function () {
+                btnMenu.setTint(0x666666);
+            });
+            btnMenu.on('pointerup', function () {
+                myScene.snd_click[0].play();
+                myScene.scene.start('sceneMenu');
+            });
+
+            // Keyboard shortcut on game over
+            if (myScene.input.keyboard) {
+                myScene.input.keyboard.once('keydown-SPACE', function () {
+                    myScene.snd_click[0].play();
+                    myScene.scene.restart();
+                });
+                myScene.input.keyboard.once('keydown-ENTER', function () {
+                    myScene.snd_click[0].play();
+                    myScene.scene.restart();
+                });
+            }
+
+            // Slide in animation
+            myScene.tweens.add({
+                targets: uiContainer,
+                y: 0,
+                duration: 650,
+                ease: 'Back.easeOut'
             });
         };
     },
@@ -235,7 +449,16 @@ var scenePlay = new Phaser.Class({
     update: function () {
         this.updateBackground();
 
-        if (!this.isGameRunning || this.isGameOver) return;
+        // If game hasn't started yet, bob the character gently
+        if (!this.isGameStarted) {
+            if (this.readyToStart) {
+                this.chara.y = (768 / 2) + Math.sin(this.time.now / 150) * 12;
+                this.chara.angle = Math.sin(this.time.now / 150) * 5;
+            }
+            return;
+        }
+
+        if (this.isGameOver) return;
 
         this.charaVelocity += this.gravity;
 
