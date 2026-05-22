@@ -35,12 +35,13 @@ var scenePlay = new Phaser.Class({
 
         this.score = 0;
 
-        // Physics versi terbang / flappy
-        this.gravity = 0.38;
-        this.jumpPower = -8.2;
+        // Physics versi runner
+        this.gravity = 0.5;
+        this.jumpPower = -13.0;
         this.charaVelocity = 0;
-        this.maxFallSpeed = 8.5;
-        this.maxUpSpeed = -9;
+        this.maxFallSpeed = 12.0;
+        this.maxUpSpeed = -15.0;
+        this.isGrounded = true;
 
         this.minSpawnDelay = 85;
         this.maxSpawnDelay = 135;
@@ -153,6 +154,7 @@ var scenePlay = new Phaser.Class({
 
                 myScene.isGameStarted = true;
                 myScene.isGameRunning = true;
+                myScene.isGrounded = true;
 
                 if (myScene.guideText) {
                     myScene.tweens.add({
@@ -185,25 +187,30 @@ var scenePlay = new Phaser.Class({
 
         this.flap = function () {
             if (!this.isGameRunning || this.isGameOver) return;
+            if (!this.isGrounded) return; // Only jump when grounded!
 
             if (this.charaTweens != null) {
                 this.charaTweens.stop();
                 this.charaTweens = null;
             }
 
+            this.isGrounded = false;
             this.charaVelocity = this.jumpPower;
 
             let randomClick = Math.floor(Math.random() * this.snd_click.length);
             this.snd_click[randomClick].play();
 
-            // Store reference so it can be stopped on next flap
+            // Jump stretch animation (very premium!)
             this.charaTweens = this.tweens.add({
                 targets: this.chara,
-                angle: -18,
-                duration: 120,
-                ease: 'Power1',
+                scaleY: 1.25,
+                scaleX: 0.85,
+                duration: 150,
+                yoyo: true,
+                ease: 'Quad.easeOut',
                 onComplete: function () {
                     myScene.charaTweens = null;
+                    myScene.chara.setScale(1);
                 }
             });
         };
@@ -214,7 +221,8 @@ var scenePlay = new Phaser.Class({
             let speedBonus = Math.min(this.score * 0.08, 3.2);
             let obstacleSpeed = this.baseObstacleSpeed + speedBonus;
 
-            let acak_y = Phaser.Math.Between(120, 630);
+            // Spawn obstacles on the ground
+            let acak_y = this.bottomLimit;
 
             let halanganBaru = this.add.image(1120, acak_y, 'obstc');
             halanganBaru.setOrigin(0.5);
@@ -460,34 +468,55 @@ var scenePlay = new Phaser.Class({
 
         if (this.isGameOver) return;
 
-        this.charaVelocity += this.gravity;
+        var myScene = this;
 
-        if (this.charaVelocity > this.maxFallSpeed) {
-            this.charaVelocity = this.maxFallSpeed;
+        if (this.isGrounded) {
+            // Apply procedural hopping visual effect to look like a Pocong hopping along the ground!
+            let hopOffset = Math.abs(Math.sin(this.time.now / 80)) * 10;
+            this.chara.y = this.bottomLimit - hopOffset;
+            this.chara.angle = Math.sin(this.time.now / 80) * 4;
+        } else {
+            // Air physics
+            this.charaVelocity += this.gravity;
+            if (this.charaVelocity > this.maxFallSpeed) {
+                this.charaVelocity = this.maxFallSpeed;
+            }
+            if (this.charaVelocity < this.maxUpSpeed) {
+                this.charaVelocity = this.maxUpSpeed;
+            }
+            this.chara.y += this.charaVelocity;
+
+            // Landing check
+            if (this.chara.y >= this.bottomLimit) {
+                this.chara.y = this.bottomLimit;
+                this.charaVelocity = 0;
+                this.isGrounded = true;
+
+                // Play landing squash & stretch tween
+                this.tweens.add({
+                    targets: this.chara,
+                    scaleY: 0.8,
+                    scaleX: 1.15,
+                    duration: 100,
+                    yoyo: true,
+                    ease: 'Quad.easeOut',
+                    onComplete: function () {
+                        myScene.chara.setScale(1);
+                    }
+                });
+            }
+
+            // Air rotation
+            if (this.charaTweens == null) {
+                let targetAngle = Phaser.Math.Clamp(this.charaVelocity * 3, -25, 35);
+                this.chara.angle = Phaser.Math.Linear(this.chara.angle, targetAngle, 0.12);
+            }
         }
 
-        if (this.charaVelocity < this.maxUpSpeed) {
-            this.charaVelocity = this.maxUpSpeed;
-        }
-
-        this.chara.y += this.charaVelocity;
-
-        // Only smoothly rotate when no flap tween is active (prevents blinking/jitter)
-        if (this.charaTweens == null) {
-            let targetAngle = Phaser.Math.Clamp(this.charaVelocity * 4, -25, 35);
-            this.chara.angle = Phaser.Math.Linear(this.chara.angle, targetAngle, 0.12);
-        }
-
+        // Ceiling clamp (no game over for hitting ceiling!)
         if (this.chara.y < this.topLimit) {
             this.chara.y = this.topLimit;
-            this.gameOver();
-            return;
-        }
-
-        if (this.chara.y > this.bottomLimit) {
-            this.chara.y = this.bottomLimit;
-            this.gameOver();
-            return;
+            this.charaVelocity = 0;
         }
 
         this.timerHalangan--;
