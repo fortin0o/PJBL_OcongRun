@@ -26,16 +26,24 @@ var scenePlay = new Phaser.Class({
         this.snd_click.push(this.sound.add('snd_klik2'));
         this.snd_click.push(this.sound.add('snd_klik3'));
 
-        for(let i = 0; i < this.snd_click.length; i++){
+        for (let i = 0; i < this.snd_click.length; i++) {
             this.snd_click[i].setVolume(0.5);
         }
+
         this.timerHalangan = 0;
         this.halangan = [];
         this.background = [];
 
         this.isGameRunning = false;
 
-        this.chara = this.add.image(130, 768 / 2, 'chara');
+        // --- Physics variables ---
+        this.GROUND_Y = 690;
+        this.GRAVITY = 0.8;       // pixels per frame² (tunable)
+        this.JUMP_FORCE = -16;    // negative = upward (tunable)
+        this.velocityY = 0;
+        this.isOnGround = false;
+
+        this.chara = this.add.image(130, this.GROUND_Y, 'chara');
         this.chara.setDepth(3);
         this.chara.setScale(0);
 
@@ -70,35 +78,50 @@ var scenePlay = new Phaser.Class({
         this.label_score.setFontSize(30);
         this.label_score.setTint(0xff732e);
 
-        this.gameover = function(){
+        // --- Add control hint text ---
+        this.hintText = this.add.text(1024 / 2, 768 - 30, 'TAP / CLICK / SPACE / ↑ to Jump', {
+            fontSize: '16px',
+            color: '#ffffff',
+            fontFamily: 'Arial',
+            alpha: 0.6
+        });
+        this.hintText.setOrigin(0.5);
+        this.hintText.setDepth(10);
+        this.hintText.setAlpha(0.6);
+
+        this.gameover = function () {
             let highScore = 0;
             try {
                 highScore = localStorage.getItem('highscore') || 0;
-            } catch(e) {
+            } catch (e) {
                 highScore = 0;
             }
-            
+
             if (myScene.score > highScore) {
                 try {
                     localStorage.setItem('highscore', myScene.score);
-                } catch(e) {
-                }
+                } catch (e) {}
             }
             myScene.scene.start('sceneMenu');
         };
 
-        this.input.on('pointerup', function (pointer, currentlyOver) {
-            if (!this.isGameRunning) return;
+        // --- Jump function (called from any input) ---
+        this.doJump = function () {
+            if (!myScene.isGameRunning) return;
+            if (!myScene.isOnGround) return;    // only jump when grounded
+            myScene.velocityY = myScene.JUMP_FORCE;
+            myScene.isOnGround = false;
+            myScene.snd_click[Math.floor(Math.random() * 3)].play();
+        };
 
-            this.snd_click[Math.floor((Math.random() * 3))].play();
+        // Pointer / touch input
+        this.input.on('pointerdown', function () {
+            myScene.doJump();
+        });
 
-            this.charaTweens = this.tweens.add({
-                targets: this.chara,
-                ease: 'Power1',
-                duration: 750,
-                y: this.chara.y - 200 
-            });
-        }, this);
+        // Keyboard input: Spacebar or Arrow Up
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
         var bg_x = 1366 / 2;
 
@@ -123,35 +146,46 @@ var scenePlay = new Phaser.Class({
 
     update: function () {
         if (this.isGameRunning) {
-            this.chara.y += 5;
-            
-            if (this.chara.y > 690) this.chara.y = 690;
-            
-            
+
+            // --- Keyboard jump ---
+            if (Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
+                Phaser.Input.Keyboard.JustDown(this.spaceKey)) {
+                this.doJump();
+            }
+
+            // --- Apply gravity each frame ---
+            this.velocityY += this.GRAVITY;
+            this.chara.y += this.velocityY;
+
+            // --- Ground collision ---
+            if (this.chara.y >= this.GROUND_Y) {
+                this.chara.y = this.GROUND_Y;
+                this.velocityY = 0;
+                this.isOnGround = true;
+            } else {
+                this.isOnGround = false;
+            }
+
+            // --- Ceiling / top boundary death ---
             if (this.chara.y < 50) {
                 this.isGameRunning = false;
-
                 this.snd_dead.play();
-                
-                if (this.charaTweens != null) {
-                    this.charaTweens.stop();
-                }
-                
+
                 var myScene = this;
-                
-                this.charaTweens = this.tweens.add({
+
+                this.tweens.add({
                     targets: this.chara,
                     ease: 'Elastic.easeOut',
                     duration: 2000,
                     alpha: 0,
-                    onComplete: function() {
+                    onComplete: function () {
                         myScene.gameover();
                     }
                 });
                 return;
             }
 
-          
+            // --- Scroll background ---
             for (let i = 0; i < this.background.length; i++) {
                 for (var j = 0; j < this.background[i].length; j++) {
                     var bg = this.background[i][j];
@@ -162,7 +196,7 @@ var scenePlay = new Phaser.Class({
                 }
             }
 
-         
+            // --- Spawn obstacles ---
             if (this.timerHalangan == 0) {
                 var acak_y = Math.floor(Math.random() * 680 + 60);
                 var halanganbaru = this.add.image(1500, acak_y, 'obstc');
@@ -175,7 +209,7 @@ var scenePlay = new Phaser.Class({
                 this.timerHalangan = Math.floor(Math.random() * 50 + 10);
             }
 
-            
+            // --- Move & clean up obstacles ---
             for (let i = this.halangan.length - 1; i >= 0; i--) {
                 var h = this.halangan[i];
                 h.x -= h.getData('kecepatan');
@@ -188,6 +222,7 @@ var scenePlay = new Phaser.Class({
 
             this.timerHalangan--;
 
+            // --- Score counting ---
             for (var i = this.halangan.length - 1; i >= 0; i--) {
                 var h = this.halangan[i];
                 if (this.chara.x > h.x + 50 && h.getData('status_aktif') == true) {
@@ -197,23 +232,20 @@ var scenePlay = new Phaser.Class({
                 }
             }
 
-            
+            // --- Collision detection ---
             for (let i = this.halangan.length - 1; i >= 0; i--) {
                 if (this.chara.getBounds().contains(this.halangan[i].x, this.halangan[i].y)) {
                     this.isGameRunning = false;
                     this.snd_dead.play();
-                    if (this.charaTweens != null) {
-                        this.charaTweens.stop();
-                    }
-                    
+
                     var myScene = this;
-                    
-                    this.charaTweens = this.tweens.add({
+
+                    this.tweens.add({
                         targets: this.chara,
                         ease: 'Elastic.easeOut',
                         duration: 2000,
                         alpha: 0,
-                        onComplete: function() {
+                        onComplete: function () {
                             myScene.gameover();
                         }
                     });
