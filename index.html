@@ -1,37 +1,92 @@
-<!DOCTYPE html> 
-<html> 
-<head> 
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Pocong</title>
+
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser-arcade-physics.min.js"></script>
-    <script>
-        var snd_ambience = null;
-        var layoutSize = {'w' : 1024, 'h': 768};
-        var X_POSITION;
-        var Y_POSITION;
-    </script>
-    <script src="sceneMenu.js"></script> 
-    <script src="scenePlay.js"></script>
-    <title>Game Ocong | Phaser Game</title>
+
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+
     <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
         body {
             display: flex;
             justify-content: center;
+            align-items: center;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
         }
     </style>
+
+    <script>
+        var snd_ambience = null;
+    </script>
+
+    <script src="sceneMenu.js"></script>
+    <script src="scenePlay.js"></script>
 </head>
+
 <body>
+    <div id="game-container"></div>
+
     <script>
         const config = {
-        type: Phaser.AUTO,
-        width: 1024,
-        height: 768,
-        scene: [sceneMenu,scenePlay],
-        physics: {
-            default: 'arcade',
-            arcade: {
-                gravity: {y: 200}
+            type: Phaser.AUTO,
+
+            parent: 'game-container',
+
+            width: 1024,
+            height: 768,
+
+            backgroundColor: '#000000',
+
+            scale: {
+                mode: Phaser.Scale.FIT,
+                autoCenter: Phaser.Scale.CENTER_BOTH,
+                width: 1024,
+                height: 768
+            },
+
+            scene: [
+                sceneMenu,
+                scenePlay
+            ],
+
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: {
+                        y: 200
+                    },
+                    debug: false
+                }
             }
-        }
-    };
+        };
+
         const game = new Phaser.Game(config);
     </script>
 </body>

@@ -1,10 +1,10 @@
 var sceneMenu = new Phaser.Class({
     Extends: Phaser.Scene,
-    initialize: function () {
-        Phaser.Scene.call(this, { "key": "sceneMenu" });
+    initialize: function(){
+        Phaser.Scene.call(this, {"key": "sceneMenu"});
     },
-    init() { },
-    preload() {
+    init(){},
+    preload(){
         this.load.image('bg_start', 'assets/images/bg_start.png');
         this.load.image('btn_play', 'assets/images/btn_play.png');
         this.load.image('title_game', 'assets/images/title_game.png');
@@ -14,10 +14,10 @@ var sceneMenu = new Phaser.Class({
         this.load.audio('snd_transisi_menu', 'assets/audio/transisi_menu.mp3');
     },
 
-    create() {
+    create(){
         //mengisikan variabel global dengan musik latar jika
         //variabel snd_ambience masih kosong
-        if (snd_ambience == null) {
+        if(snd_ambience == null){
             snd_ambience = this.sound.add('snd_ambience');
             snd_ambience.loop = true;
             snd_ambience.setVolume(0.35);
@@ -29,21 +29,21 @@ var sceneMenu = new Phaser.Class({
         //variabel untuk menampung skor tertinggi yang sudah pernah dicapai
         var skorTertinggi = localStorage["highscore"] || 0;
         //menambahkan background ke dalam scene
-        this.add.image(1024 / 2, 768 / 2, 'bg_start');
+        this.add.image(1024/2, 768/2, 'bg_start');
 
         //menambahkan sprite tombol play ke dalam scene
-        var btnPlay = this.add.image(1024 / 2, 768 / 2 + 75, 'btn_play');
+        var btnPlay = this.add.image(1024/2, 768/2 + 75, 'btn_play');
         btnPlay.setDepth(10);
 
         //menambahkan judul game
-        this.titleGame = this.add.image(1024 / 2, 200, 'title_game');
+        this.titleGame = this.add.image(1024/2, 200, 'title_game');
         this.titleGame.setDepth(10);
 
         //mengurangi posisi y judul game sebanyak 384 pixel
         this.titleGame.y -= 384;
 
         //membuat panel nilai
-        var panelSkor = this.add.image(1024 / 2, 768 - 120, 'panel_skor');
+        var panelSkor = this.add.image(1024/2, 768-120, 'panel_skor');
         panelSkor.setOrigin(0.5);
         panelSkor.setDepth(10);
         panelSkor.setAlpha(0.8);
@@ -63,7 +63,7 @@ var sceneMenu = new Phaser.Class({
             duration: 750,
             delay: 250,
             y: 200,
-            onComplete: function () {
+            onComplete: function(){
                 snd_transisi.play();
             }
         });
@@ -139,5 +139,5 @@ var sceneMenu = new Phaser.Class({
         var isBtnClicked = false;
 
     },
-    update() { }
+    update(){}
 });

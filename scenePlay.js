@@ -5,7 +5,7 @@ var scenePlay = new Phaser.Class({
         Phaser.Scene.call(this, { key: 'scenePlay' });
     },
 
-    init: function () { },
+    init: function () {},
 
     preload: function () {
         this.load.image('chara', 'assets/images/chara.png');
