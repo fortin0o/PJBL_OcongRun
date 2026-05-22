@@ -29,13 +29,8 @@ PJBL_OcongRun/
 │   └─ audio/                # Sound effects
 ```
 
-## How to Run
-1. Open a terminal in the project folder.
-2. Start a simple HTTP server, e.g.:
-   ```
-   python -m http.server 8000
-   ```
-3. Open `http://localhost:8000` in a browser.
+## How to Play
+
 
 ## Development Notes
 - **Ground level** is controlled by `this.bottomLimit` in `scenePlay.js` (currently set to `590`).
