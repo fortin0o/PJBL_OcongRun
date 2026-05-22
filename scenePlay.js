@@ -241,24 +241,56 @@ var scenePlay = new Phaser.Class({
             if (!this.isGameRunning || this.isGameOver) return;
 
             let speedBonus = Math.min(this.score * 0.08, 3.2);
-            let obstacleSpeed = this.baseObstacleSpeed + speedBonus;
+            let baseSpeed = this.baseObstacleSpeed + speedBonus;
 
-            // Spawn obstacles on the ground — align bottom of obstacle with character feet
-            // Character feet at bottomLimit + 75. Obstacle half-height (69*0.85/2 ≈ 29)
-            let groundY = this.bottomLimit + 75; // actual ground line (feet)
-            let acak_y = groundY - (69 * 0.85 / 2); // obstacle center so bottom aligns
+            // Random speed multiplier per fireball (0.8x to 1.4x) for unpredictability
+            let speedMultiplier = 0.8 + Math.random() * 0.6;
+            let obstacleSpeed = baseSpeed * speedMultiplier;
+
+            // Height variation: ground (70%), mid (20%), high (10%)
+            let groundY = this.bottomLimit + 75; // character feet line
+            let heightRoll = Math.random();
+            let acak_y;
+            let obstScale;
+
+            if (heightRoll < 0.70) {
+                // Ground level fireball
+                obstScale = 0.7 + Math.random() * 0.35; // 0.70 - 1.05
+                acak_y = groundY - (69 * obstScale / 2);
+            } else if (heightRoll < 0.90) {
+                // Mid-height fireball (player must jump)
+                obstScale = 0.65 + Math.random() * 0.3;
+                acak_y = groundY - 80 - Math.random() * 60;
+            } else {
+                // High fireball (player can duck under or must time double jump)
+                obstScale = 0.6 + Math.random() * 0.25;
+                acak_y = groundY - 180 - Math.random() * 80;
+            }
 
             let halanganBaru = this.add.image(1120, acak_y, 'obstc');
             halanganBaru.setOrigin(0.5);
             halanganBaru.setDepth(5);
-            halanganBaru.setScale(0.85);
+            halanganBaru.setScale(obstScale);
 
             halanganBaru.setData('status_aktif', true);
             halanganBaru.setData('kecepatan', obstacleSpeed);
 
+            // 25% chance: sine-wave wobble movement
+            if (Math.random() < 0.25) {
+                halanganBaru.setData('wobble', true);
+                halanganBaru.setData('wobbleBase', acak_y);
+                halanganBaru.setData('wobbleAmp', 20 + Math.random() * 30);
+                halanganBaru.setData('wobbleSpeed', 0.003 + Math.random() * 0.004);
+            } else {
+                halanganBaru.setData('wobble', false);
+            }
+
             this.halangan.push(halanganBaru);
 
-            this.timerHalangan = Phaser.Math.Between(this.minSpawnDelay, this.maxSpawnDelay);
+            // Vary spawn delay more: tighter at higher scores
+            let minDelay = Math.max(45, this.minSpawnDelay - this.score * 0.5);
+            let maxDelay = Math.max(80, this.maxSpawnDelay - this.score * 0.3);
+            this.timerHalangan = Phaser.Math.Between(minDelay, maxDelay);
         };
 
         this.gameOver = function () {
@@ -317,7 +349,7 @@ var scenePlay = new Phaser.Class({
             let uiContainer = myScene.add.container(0, 768);
             uiContainer.setDepth(100);
 
-            let cardWidth = 460;
+            let cardWidth = 480;
             let cardHeight = 380;
             let cardX = 1024 / 2 - cardWidth / 2;
             let cardY = 768 / 2 - cardHeight / 2;
@@ -372,86 +404,95 @@ var scenePlay = new Phaser.Class({
             highScoreValText.setOrigin(0.5);
             uiContainer.add(highScoreValText);
 
-            // Restart Button
-            let btnRestart = myScene.add.image(1024 / 2 - 105, cardY + 285, 'panel_skor');
-            btnRestart.setDisplaySize(160, 50);
-            btnRestart.setInteractive();
-            uiContainer.add(btnRestart);
+            // --- Helper: Create a proper button with graphics background ---
+            function createButton(x, y, width, height, label, fillColor, strokeColor) {
+                let btnGfx = myScene.add.graphics();
+                btnGfx.fillStyle(fillColor, 1);
+                btnGfx.lineStyle(3, strokeColor, 1);
+                btnGfx.fillRoundedRect(x - width / 2, y - height / 2, width, height, 10);
+                btnGfx.strokeRoundedRect(x - width / 2, y - height / 2, width, height, 10);
 
-            let txtRestart = myScene.add.text(btnRestart.x, btnRestart.y, 'MAIN LAGI', {
-                fontFamily: 'Arial, sans-serif',
-                fontSize: '18px',
-                fontStyle: 'bold',
-                color: '#ffffff'
-            });
-            txtRestart.setOrigin(0.5);
-            uiContainer.add(txtRestart);
+                let btnZone = myScene.add.zone(x, y, width, height);
+                btnZone.setInteractive({ useHandCursor: true });
 
-            // Menu Button
-            let btnMenu = myScene.add.image(1024 / 2 + 105, cardY + 285, 'panel_skor');
-            btnMenu.setDisplaySize(160, 50);
-            btnMenu.setInteractive();
-            btnMenu.setTint(0x999999);
-            uiContainer.add(btnMenu);
+                let btnText = myScene.add.text(x, y, label, {
+                    fontFamily: 'Arial, sans-serif',
+                    fontSize: '18px',
+                    fontStyle: 'bold',
+                    color: '#ffffff'
+                });
+                btnText.setOrigin(0.5);
 
-            let txtMenu = myScene.add.text(btnMenu.x, btnMenu.y, 'MENU UTAMA', {
-                fontFamily: 'Arial, sans-serif',
-                fontSize: '18px',
-                fontStyle: 'bold',
-                color: '#ffffff'
-            });
-            txtMenu.setOrigin(0.5);
-            uiContainer.add(txtMenu);
+                return { gfx: btnGfx, zone: btnZone, text: btnText };
+            }
 
-            // Hover and Click animations
-            btnRestart.on('pointerover', function () {
-                btnRestart.setTint(0xdddddd);
+            // Restart Button (left)
+            let btnWidth = 180;
+            let btnHeight = 50;
+            let btnGap = 24;
+            let btnCenterY = cardY + 300;
+            let restartX = 1024 / 2 - btnWidth / 2 - btnGap / 2;
+            let menuX = 1024 / 2 + btnWidth / 2 + btnGap / 2;
+
+            let restartBtn = createButton(restartX, btnCenterY, btnWidth, btnHeight, 'MAIN LAGI', 0xff732e, 0xff9f0a);
+            uiContainer.add(restartBtn.gfx);
+            uiContainer.add(restartBtn.zone);
+            uiContainer.add(restartBtn.text);
+
+            // Menu Button (right)
+            let menuBtn = createButton(menuX, btnCenterY, btnWidth, btnHeight, 'MENU UTAMA', 0x3a3a4a, 0x666680);
+            uiContainer.add(menuBtn.gfx);
+            uiContainer.add(menuBtn.zone);
+            uiContainer.add(menuBtn.text);
+
+            // Hover and Click animations — Restart
+            restartBtn.zone.on('pointerover', function () {
                 myScene.tweens.add({
-                    targets: [btnRestart, txtRestart],
-                    scaleX: 1.05,
-                    scaleY: 1.05,
+                    targets: [restartBtn.text],
+                    scaleX: 1.08,
+                    scaleY: 1.08,
                     duration: 100
                 });
             });
-            btnRestart.on('pointerout', function () {
-                btnRestart.setTint(0xffffff);
+            restartBtn.zone.on('pointerout', function () {
                 myScene.tweens.add({
-                    targets: [btnRestart, txtRestart],
+                    targets: [restartBtn.text],
                     scaleX: 1.0,
                     scaleY: 1.0,
                     duration: 100
                 });
             });
-            btnRestart.on('pointerdown', function () {
-                btnRestart.setTint(0x888888);
+            restartBtn.zone.on('pointerdown', function () {
+                restartBtn.text.setAlpha(0.6);
             });
-            btnRestart.on('pointerup', function () {
+            restartBtn.zone.on('pointerup', function () {
+                restartBtn.text.setAlpha(1);
                 myScene.snd_click[0].play();
                 myScene.scene.restart();
             });
 
-            btnMenu.on('pointerover', function () {
-                btnMenu.setTint(0xcccccc);
+            // Hover and Click animations — Menu
+            menuBtn.zone.on('pointerover', function () {
                 myScene.tweens.add({
-                    targets: [btnMenu, txtMenu],
-                    scaleX: 1.05,
-                    scaleY: 1.05,
+                    targets: [menuBtn.text],
+                    scaleX: 1.08,
+                    scaleY: 1.08,
                     duration: 100
                 });
             });
-            btnMenu.on('pointerout', function () {
-                btnMenu.setTint(0x999999);
+            menuBtn.zone.on('pointerout', function () {
                 myScene.tweens.add({
-                    targets: [btnMenu, txtMenu],
+                    targets: [menuBtn.text],
                     scaleX: 1.0,
                     scaleY: 1.0,
                     duration: 100
                 });
             });
-            btnMenu.on('pointerdown', function () {
-                btnMenu.setTint(0x666666);
+            menuBtn.zone.on('pointerdown', function () {
+                menuBtn.text.setAlpha(0.6);
             });
-            btnMenu.on('pointerup', function () {
+            menuBtn.zone.on('pointerup', function () {
+                menuBtn.text.setAlpha(1);
                 myScene.snd_click[0].play();
                 myScene.scene.start('sceneMenu');
             });
@@ -555,6 +596,14 @@ var scenePlay = new Phaser.Class({
             let obstacle = this.halangan[i];
 
             obstacle.x -= obstacle.getData('kecepatan');
+
+            // Apply sine-wave wobble if this obstacle has it
+            if (obstacle.getData('wobble')) {
+                let wobbleBase = obstacle.getData('wobbleBase');
+                let wobbleAmp = obstacle.getData('wobbleAmp');
+                let wobbleSpeed = obstacle.getData('wobbleSpeed');
+                obstacle.y = wobbleBase + Math.sin(this.time.now * wobbleSpeed) * wobbleAmp;
+            }
 
             if (obstacle.x < -200) {
                 obstacle.destroy();
